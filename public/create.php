@@ -1,8 +1,14 @@
 <?php
+session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Vérification du TOKEN 
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? null)) {
+        die("Erreur CSRF.");
+    }
+
     createTask($pdo, $_POST);
 
     // Redirection après POST
@@ -20,69 +26,94 @@ $categories = $pdo->query("SELECT * FROM categorie")->fetchAll();
 <head>
     <meta charset="UTF-8">
     <title>Ajouter une tâche</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 40px;
             background: #f5f5f5;
+            margin: 0;
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 750px;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
         h1 {
-            margin-bottom: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 32px;
+            color: #222;
         }
 
-        /* ===== FORMULAIRE ===== */
         form {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 600px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
         }
 
         label {
-            display: block;
-            margin-top: 12px;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            margin-top: 15px;
             font-weight: bold;
+            font-size: 16px;
+            color: #333;
         }
 
-        input, textarea, select {
+        input,
+        textarea,
+        select {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
+            padding: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
             box-sizing: border-box;
         }
 
         textarea {
+            min-height: 140px;
             resize: vertical;
-            min-height: 100px;
         }
 
-        /* ===== BOUTON ===== */
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
         button {
-            margin-top: 15px;
-            padding: 10px 15px;
+            margin-top: 30px;
+            padding: 15px;
             background: #2ecc71;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
+            font-size: 18px;
             cursor: pointer;
-            font-size: 15px;
+            transition: 0.2s;
         }
 
         button:hover {
             background: #27ae60;
         }
 
-        /* ===== LIEN RETOUR ===== */
         .back {
-            display: inline-block;
-            margin-top: 15px;
+            display: block;
+            text-align: center;
+            margin-top: 20px;
             text-decoration: none;
             color: #3498db;
+            font-size: 16px;
         }
 
         .back:hover {
@@ -90,52 +121,64 @@ $categories = $pdo->query("SELECT * FROM categorie")->fetchAll();
         }
     </style>
 </head>
+
 <body>
 
-<h1>Ajouter une tâche</h1>
+<div class="container">
 
-<form method="POST">
+    <h1>Ajouter une tâche</h1>
 
-    <label>Titre :</label><br>
-    <input type="text" name="title" required><br><br>
+    <form method="POST">
 
-    <label>Description :</label><br>
-    <textarea name="description"></textarea><br><br>
+        <label for="title">Titre :</label>
+        <input type="text" id="title" name="title" required>
 
-    <label>Date échéance :</label><br>
-    <input type="date" name="dateEcheance"><br><br>
+        <label for="description">Description :</label>
+        <textarea id="description" name="description"></textarea>
 
-    <label>Priorité :</label><br>
-    <select name="idPriorite">
-        <?php foreach ($priorites as $p): ?>
-            <option value="<?= $p['idPriorite'] ?>">
-                <?= $p['priorite'] ?>
-            </option>
-        <?php endforeach; ?>
-    </select><br><br>
+        <label for="dateEcheance">Date échéance :</label>
+        <input type="date" id="dateEcheance" name="dateEcheance">
 
-    <label>Statut :</label><br>
-    <select name="idStatut">
-        <?php foreach ($statuts as $s): ?>
-            <option value="<?= $s['idStatut'] ?>">
-                <?= $s['statut'] ?>
-            </option>
-        <?php endforeach; ?>
-    </select><br><br>
+        <label for="idPriorite">Priorité :</label>
+        <select id="idPriorite" name="idPriorite">
+            <?php foreach ($priorites as $p): ?>
+                <option value="<?= $p['idPriorite'] ?>">
+                    <?= htmlspecialchars($p['priorite']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
 
-    <label>Catégorie :</label><br>
-    <select name="idCategorie">
-        <?php foreach ($categories as $c): ?>
-            <option value="<?= $c['idCategorie'] ?>">
-                <?= $c['categorie'] ?>
-            </option>
-        <?php endforeach; ?>
-    </select><br><br>
+        <label for="idStatut">Statut :</label>
+        <select id="idStatut" name="idStatut">
+            <?php foreach ($statuts as $s): ?>
+                <option value="<?= $s['idStatut'] ?>">
+                    <?= htmlspecialchars($s['statut']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
 
-    <button type="submit">Créer</button>
-</form>
+        <label for="idCategorie">Catégorie :</label>
+        <select id="idCategorie" name="idCategorie">
+            <?php foreach ($categories as $c): ?>
+                <option value="<?= $c['idCategorie'] ?>">
+                    <?= htmlspecialchars($c['categorie']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
 
-<p><a href="index.php">Retour</a></p>
+        <!-- Token CSRF -->
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="<?= generateCsrfToken() ?>">
+
+        <button type="submit">Créer la tâche</button>
+
+    </form>
+
+    <a class="back" href="index.php">← Retour à la liste</a>
+
+</div>
 
 </body>
 </html>

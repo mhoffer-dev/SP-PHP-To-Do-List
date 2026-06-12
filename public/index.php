@@ -2,10 +2,12 @@
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
-/**
- * Récupération des tâches
- */
-$tasks = getAllTasks($pdo);
+// Tri choisi
+$sort = $_GET['sort'] ?? 'dateCreation';
+$order = $_GET['order'] ?? 'DESC';
+
+// Récupération des tâches
+$tasks = getAllTasks($pdo, $sort, $order);
 ?>
 
 <!DOCTYPE html>
@@ -15,10 +17,23 @@ $tasks = getAllTasks($pdo);
     <title>To Do List</title>
 
     <style>
+        html {
+            height: 100%;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
+            min-height: 100vh;
+            margin: 0;
             background: #f5f5f5;
+            font-family: Arial, sans-serif;
+
+            display: flex;
+            flex-direction: column;
+        }
+
+        main {
+            flex: 1;
+            padding: 40px;
         }
 
         h1 {
@@ -29,12 +44,17 @@ $tasks = getAllTasks($pdo);
             width: 100%;
             border-collapse: collapse;
             background: white;
+            table-layout: fixed;
         }
 
-        th, td {
+        th,
+        td {
             padding: 12px;
             border: 1px solid #ddd;
             text-align: left;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
         }
 
         th {
@@ -68,84 +88,100 @@ $tasks = getAllTasks($pdo);
             border-radius: 5px;
         }
 
-        .tag {
-            display: inline-block;
-            padding: 3px 8px;
-            background: #eee;
-            border-radius: 12px;
-            margin-right: 5px;
-            font-size: 12px;
+        .sort-bar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            font-size: 20px;
+        }
+
+        .sort-bar a {
+            text-decoration: none;
+            background: #444;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 5px;
+        }
+
+        .sort-bar a:hover {
+            background: #222;
+        }
+
+        footer {
+            background: #222;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+        }
+
+        footer p {
+            margin: 0;
         }
     </style>
 </head>
 
 <body>
+    <main>
+        <h1>📋 To Do List</h1>
 
-<h1>📋 To Do List</h1>
+        <div class="sort-bar">
+            Trier par :
+            <a href="?sort=dateCreation&order=DESC">📅 Date création</a>
+            <a href="?sort=dateEcheance&order=ASC">⏳ Échéance</a>
+            <a href="?sort=idPriorite&order=DESC">⚡ Priorité</a>
+            <a href="?sort=idStatut&order=ASC">📌 Statut</a>
+        </div>
 
-<a class="create" href="create.php">+ Ajouter une tâche</a>
+        <a class="create" href="create.php">+ Ajouter une tâche</a>
 
-<table>
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Titre</th>
-            <th>Description</th>
-            <th>Création</th>
-            <th>Échéance</th>
-            <th>Priorité</th>
-            <th>Statut</th>
-            <th>Catégorie</th>
-            <th>Tags</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
+        <table>
+            <thead>
+                <tr>
+                    <th>Titre</th>
+                    <th>Description</th>
+                    <th>Création</th>
+                    <th>Échéance</th>
+                    <th>Priorité</th>
+                    <th>Statut</th>
+                    <th>Catégorie</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
 
-    <tbody>
+            <tbody>
 
-    <?php foreach ($tasks as $task): ?>
+            <?php foreach ($tasks as $task): ?>
 
-        <?php
-        // récupération des tags pour chaque tâche
-        $stmt = $pdo->prepare("
-            SELECT tag.tag
-            FROM tag
-            JOIN tache_tag tt ON tt.idTag = tag.idTag
-            WHERE tt.idTache = ?
-        ");
-        $stmt->execute([$task['idTache']]);
-        $tags = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        ?>
+                <tr>
+                    <td><?= htmlspecialchars($task['title']) ?></td>
+                    <td><?= htmlspecialchars($task['description']) ?></td>
+                    <td><?= date('d/m/Y', strtotime($task['dateCreation'])) ?></td>
+                    <td><?= $task['dateEcheance'] ? date('d/m/Y', strtotime($task['dateEcheance'])) : '' ?></td>
+                    <td><?= $task['priorite'] ?></td>
+                    <td><?= $task['statut'] ?></td>
+                    <td><?= $task['categorie'] ?></td>
+                    <td class="actions">
+                        <a class="edit" href="edit.php?id=<?= $task['idTache'] ?>">Modifier</a>
+                        <a class="delete" href="delete.php?id=<?= $task['idTache'] ?>"
+                        onclick="return confirm('Supprimer cette tâche ?')">
+                            Supprimer
+                        </a>
+                    </td>
+                </tr>
 
-        <tr>
-            <td><?= $task['idTache'] ?></td>
-            <td><?= htmlspecialchars($task['title']) ?></td>
-            <td><?= htmlspecialchars($task['description']) ?></td>
-            <td><?= $task['dateCreation'] ?></td>
-            <td><?= $task['dateEcheance'] ?></td>
-            <td><?= $task['priorite'] ?></td>
-            <td><?= $task['statut'] ?></td>
-            <td><?= $task['categorie'] ?></td>
+            <?php endforeach; ?>
 
-            <td>
-                <?php foreach ($tags as $tag): ?>
-                    <span class="tag"><?= htmlspecialchars($tag) ?></span>
-                <?php endforeach; ?>
-            </td>
-
-            <td class="actions">
-                <a class="edit" href="edit.php?id=<?= $task['idTache'] ?>">Modifier</a>
-                <a class="delete" href="delete.php?id=<?= $task['idTache'] ?>"
-                   onclick="return confirm('Supprimer cette tâche ?')">
-                    Supprimer
-                </a>
-            </td>
-        </tr>
-
-    <?php endforeach; ?>
-
-    </tbody>
-</table>
-
+            </tbody>
+        </table>
+    </main>
+<footer>
+    <p>
+        © <?= date('Y') ?> - UE 6.1.1 To Do List PHP |
+        Développé par Mickael Hoffer |
+        LP DWCA
+    </p>
+</footer>
 </body>
 </html>

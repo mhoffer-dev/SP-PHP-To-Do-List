@@ -1,22 +1,27 @@
 <?php
 
 // Lire toutes les tâches
-function getAllTasks(PDO $pdo)
+function getAllTasks(PDO $pdo, string $sort = 'dateCreation', string $order = 'DESC')
 {
+    $allowedSort = ['dateCreation', 'dateEcheance', 'idPriorite', 'idStatut'];
+    $allowedOrder = ['ASC', 'DESC'];
+
+    if (!in_array($sort, $allowedSort)) $sort = 'dateCreation';
+    if (!in_array($order, $allowedOrder)) $order = 'DESC';
+
     $sql = "
         SELECT t.*,
-       p.priorite AS priorite,
-       s.statut AS statut,
-       c.categorie AS categorie
+               p.priorite,
+               s.statut,
+               c.categorie
         FROM tache t
         JOIN priorite p ON t.idPriorite = p.idPriorite
         JOIN statut s ON t.idStatut = s.idStatut
         JOIN categorie c ON t.idCategorie = c.idCategorie
-        ORDER BY t.idTache DESC
+        ORDER BY $sort $order
     ";
 
-    $stmt = $pdo->query($sql);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Lire une tâche
@@ -104,4 +109,25 @@ function deleteTask(PDO $pdo, int $id)
     );
 
     return $stmt->execute([$id]);
+}
+
+/**
+ * Génération d'un token CSRF
+ */
+function generateCsrfToken(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Vérification du token
+ */
+function verifyCsrfToken(?string $token): bool
+{
+    return isset($_SESSION['csrf_token'])
+        && hash_equals($_SESSION['csrf_token'], $token ?? '');
 }
